@@ -74,7 +74,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration c = new CorsConfiguration();
-        c.setAllowedOrigins(List.of("http://localhost:5173")); // Vite dev server
+        // Auth is via the Authorization: Bearer header, never cookies, so credentials stay off and
+        // allowing any origin is safe. This covers the Vite dev server, same-origin production
+        // (the SPA is served by this app), and any future host without a rebuild. Note that even
+        // same-origin ES-module script fetches send an Origin header, so this must not be a fixed list.
+        c.setAllowedOriginPatterns(List.of("*"));
         c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         c.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();

@@ -22,7 +22,16 @@ fi
 
 echo "==> Installing Docker if needed"
 if ! command -v docker >/dev/null 2>&1; then
-  curl -fsSL https://get.docker.com | sudo sh
+  if command -v dnf >/dev/null 2>&1; then
+    # Oracle Linux / RHEL 9 — the get.docker.com script doesn't support 'ol', use the repo directly.
+    sudo dnf install -y dnf-plugins-core || sudo dnf install -y dnf-utils || true
+    sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null || \
+      sudo dnf config-manager addrepo --from-repofile=https://download.docker.com/linux/centos/docker-ce.repo
+    sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo systemctl enable --now docker
+  else
+    curl -fsSL https://get.docker.com | sudo sh
+  fi
   sudo usermod -aG docker "$USER" || true
 fi
 
