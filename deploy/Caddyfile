@@ -1,0 +1,6 @@
+# Caddy terminates HTTPS (auto Let's Encrypt cert for the sslip.io hostname) and
+# reverse-proxies to the Spring Boot app. SITE_ADDRESS is injected from .env.
+{$SITE_ADDRESS} {
+	encode gzip
+	reverse_proxy app:8081
+}
