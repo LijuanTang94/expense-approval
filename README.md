@@ -98,6 +98,37 @@ JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw test
 14 tests, no database required: the state-machine transition table plus the RBAC guarantees
 (role-owns-stage, department scoping, no self-approval) with mocked repositories.
 
+## Deployment
+
+The app ships as a **single container**: a multi-stage `Dockerfile` builds the React SPA, embeds it
+in the Spring Boot jar (served from `classpath:/static`), and runs it on a slim JRE. Spring serves
+both the API (`/api/**`) and the SPA (with a forwarding controller so client-side deep links work),
+so there's **one image, one URL, no CORS** in production.
+
+**Whole stack locally (app + Postgres) in one command:**
+
+```bash
+docker compose up --build        # app on http://localhost:8081
+```
+
+**Fly.io (live demo):**
+
+```bash
+fly launch --no-deploy           # pick a unique app name; keeps the provided fly.toml
+fly postgres create              # managed Postgres; then attach it:
+fly postgres attach <pg-app-name>
+# Point the app at the DB (JDBC form) and set a real JWT secret:
+fly secrets set \
+  DB_URL="jdbc:postgresql://<pg-host>.flycast:5432/<db>" \
+  DB_USER="<user>" DB_PASSWORD="<password>" \
+  APP_JWT_SECRET="$(openssl rand -base64 48)"
+fly deploy
+```
+
+**AWS alternative:** the same image runs on **AWS App Runner** (point it at the container, set the
+`DB_URL` / `DB_USER` / `DB_PASSWORD` / `APP_JWT_SECRET` env vars) with **RDS for PostgreSQL** — no
+code changes, just a different target.
+
 ## Design notes
 
 - **Stateless JWT, no server session.** The token carries `sub` (user id), `role`, and `dept`; the

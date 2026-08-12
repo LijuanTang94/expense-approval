@@ -15,5 +15,20 @@ services:
       timeout: 3s
       retries: 10
 
+  # The full app (Spring Boot serving the built React SPA) — `docker compose up` runs everything.
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/expense
+      DB_USER: expense
+      DB_PASSWORD: expense
+      APP_JWT_SECRET: local-compose-secret-change-me-32bytes-minimum
+      SERVER_PORT: "8081"
+    ports:
+      - "8081:8081"
+
 volumes:
   expense_pg:

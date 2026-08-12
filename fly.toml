@@ -1,0 +1,23 @@
+# Fly.io deployment for the single-container app (Spring Boot serving the React SPA).
+# Rename `app` to something unique before `fly deploy`. See the Deployment section in README.md.
+app = "expense-approval-demo"
+primary_region = "sea"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8081
+  force_https = true
+  # Scale to zero when idle to stay within the free allowance; wakes on the next request.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[env]
+  SERVER_PORT = "8081"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512

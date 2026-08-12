@@ -1,6 +1,7 @@
 package com.sandy.expense.security;
 
 import java.util.List;
+import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -36,6 +37,19 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**")
                         .permitAll()
                         .requestMatchers("/actuator/health", "/error")
+                        .permitAll()
+                        // The SPA shell + its static assets are public (just JS/HTML); the data
+                        // API under /api/** stays protected. The React app calls /api/auth/me and
+                        // redirects to /login itself when unauthenticated.
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/",
+                                "/index.html",
+                                "/login",
+                                "/requests/**",
+                                "/assets/**",
+                                "/favicon.ico",
+                                "/vite.svg")
                         .permitAll()
                         .anyRequest()
                         .authenticated())
