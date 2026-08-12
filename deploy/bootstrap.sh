@@ -5,12 +5,20 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-echo "==> Opening host firewall for 80/443 (Oracle Ubuntu blocks these by default)"
-sudo iptables -C INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null || \
-  sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
-sudo iptables -C INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || \
-  sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
-sudo netfilter-persistent save 2>/dev/null || true
+echo "==> Opening host firewall for 80/443 (Oracle images block these by default)"
+if command -v firewall-cmd >/dev/null 2>&1 && sudo systemctl is-active --quiet firewalld; then
+  # Oracle Linux (firewalld)
+  sudo firewall-cmd --permanent --add-port=80/tcp
+  sudo firewall-cmd --permanent --add-port=443/tcp
+  sudo firewall-cmd --reload
+else
+  # Ubuntu/Debian (iptables + netfilter-persistent)
+  sudo iptables -C INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null || \
+    sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+  sudo iptables -C INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || \
+    sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+  command -v netfilter-persistent >/dev/null 2>&1 && sudo netfilter-persistent save || true
+fi
 
 echo "==> Installing Docker if needed"
 if ! command -v docker >/dev/null 2>&1; then
