@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: expense-approval
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/expense}
+    username: ${DB_USER:expense}
+    password: ${DB_PASSWORD:expense}
+  jpa:
+    hibernate:
+      # Flyway owns the schema (versioned SQL migrations); Hibernate never touches it.
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: ${SERVER_PORT:8081}
+
+# App-specific auth config. Override the secret in real deployments (env APP_JWT_SECRET).
+app:
+  jwt:
+    # HS256 secret — must be at least 32 bytes. Dev-only default; override in prod.
+    secret: ${APP_JWT_SECRET:dev-only-change-me-please-32bytes-minimum-secret}
+    # Access-token lifetime in minutes.
+    expiration-minutes: ${APP_JWT_EXPIRATION_MINUTES:120}
+
+logging:
+  level:
+    org.springframework.security: INFO
