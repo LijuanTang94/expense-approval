@@ -104,12 +104,36 @@ On first boot the app seeds three departments and five demo accounts (password `
 JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw test
 ```
 
-15 tests, no database required: the state-machine transition table plus the RBAC guarantees
-(role-owns-stage, department scoping, no self-approval) with mocked repositories.
+19 tests in two layers.
 
-These are unit tests with mocked repositories, so they deliberately do not cover wiring: a broken
-Flyway migration, a bad `@Query`, or a malformed `@PreAuthorize` expression would still let the suite
-pass. A `@SpringBootTest` context-load test against Testcontainers is the obvious next addition.
+**13 unit tests** (no database, mocked repositories) cover the state-machine transition table and the
+RBAC guarantees: role-owns-stage, department scoping, no self-approval.
+
+**6 integration tests** boot the whole application against a real Postgres via Testcontainers,
+because the mocked tests are blind to an entire class of failure — a migration that doesn't apply, an
+entity that no longer matches the schema (`ddl-auto: validate` only speaks up against a real
+database), a malformed `@Query`, or a `@PreAuthorize` expression that doesn't parse. All of those
+pass a mocked suite and then fail at startup in production.
+
+- `ApplicationContextTest` — the context comes up, Flyway applied its migrations, and
+  `expense_requests` really has the `version` column optimistic locking depends on.
+- `OptimisticLockingTest` — two approvers acting on the same request: the second commit loses the
+  race and raises `ObjectOptimisticLockingFailureException`, which the API surfaces as `409`. Also
+  pins that a rejection is a terminal decision and that the audit trail gains exactly one row per
+  successful transition.
+
+The Postgres container is a JVM-wide singleton, started in a static initialiser rather than through
+`@Testcontainers`/`@Container` — see the comment in `PostgresIntegrationTest` for why that matters
+once Spring starts caching contexts across test classes.
+
+> **Docker 29+**: Testcontainers 1.21 negotiates an API version below the `MinAPIVersion` that
+> Docker 29 enforces, so the daemon answers `400` and every container start fails. Until
+> Testcontainers ships a fix, pin the API version for the test JVM:
+>
+> ```bash
+> JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw test \
+>   -DargLine="-Dapi.version=1.44 -Ddocker.host=unix://$HOME/.docker/run/docker.sock"
+> ```
 
 ## Deployment
 

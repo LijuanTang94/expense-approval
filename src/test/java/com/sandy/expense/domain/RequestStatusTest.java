@@ -26,18 +26,4 @@ class RequestStatusTest {
         assertThat(RequestStatus.FINANCE_APPROVED.approverRole()).isNull();
         assertThat(RequestStatus.REJECTED.approverRole()).isNull();
     }
-
-    @Test
-    void terminalStatesAreTerminal() {
-        assertThat(RequestStatus.FINANCE_APPROVED.isTerminal()).isTrue();
-        assertThat(RequestStatus.REJECTED.isTerminal()).isTrue();
-        assertThat(RequestStatus.SUBMITTED.isTerminal()).isFalse();
-        assertThat(RequestStatus.DRAFT.isTerminal()).isFalse();
-    }
-
-    @Test
-    void onlySubmittedAndManagerApprovedAreRejectable() {
-        assertThat(RequestStatus.REJECTABLE)
-                .containsExactlyInAnyOrder(RequestStatus.SUBMITTED, RequestStatus.MANAGER_APPROVED);
-    }
 }

@@ -1,7 +1,5 @@
 package com.sandy.expense.domain;
 
-import java.util.Set;
-
 /**
  * States of an expense request and the legal transitions between them:
  *
@@ -18,11 +16,6 @@ public enum RequestStatus {
     MANAGER_APPROVED,
     FINANCE_APPROVED,
     REJECTED;
-
-    /** Terminal states cannot transition further. */
-    public boolean isTerminal() {
-        return this == FINANCE_APPROVED || this == REJECTED;
-    }
 
     /** The stage that is allowed to approve/reject a request in this state (null if none). */
     public Role approverRole() {
@@ -41,7 +34,4 @@ public enum RequestStatus {
             default -> null;
         };
     }
-
-    /** States from which a request may still be rejected. */
-    public static final Set<RequestStatus> REJECTABLE = Set.of(SUBMITTED, MANAGER_APPROVED);
 }
