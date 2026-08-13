@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -25,7 +26,7 @@ public final class ExpenseDtos {
             @NotBlank String description,
             @NotBlank String category,
             @NotNull @Positive BigDecimal amount,
-            @NotNull LocalDate incurredOn) {}
+            @NotNull @PastOrPresent(message = "expense date cannot be in the future") LocalDate incurredOn) {}
 
     public record CreateRequest(
             @NotBlank @Size(max = 200) String title,

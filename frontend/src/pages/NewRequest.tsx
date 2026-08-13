@@ -12,6 +12,10 @@ const emptyItem = (): ItemInput => ({
 
 const CATEGORIES = ["Travel", "Lodging", "Meals", "Supplies", "Software", "Other"];
 
+// Expenses are reimbursed after they're incurred, so the date can't be in the future.
+// Enforced here in the picker and again server-side (@PastOrPresent) as defence in depth.
+const TODAY = new Date().toISOString().slice(0, 10);
+
 export function NewRequest() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
@@ -98,7 +102,7 @@ export function NewRequest() {
               </div>
               <div>
                 <label>Date</label>
-                <input type="date" value={it.incurredOn} onChange={(e) => updateItem(idx, { incurredOn: e.target.value })} required />
+                <input type="date" max={TODAY} value={it.incurredOn} onChange={(e) => updateItem(idx, { incurredOn: e.target.value })} required />
               </div>
               <button
                 type="button"
