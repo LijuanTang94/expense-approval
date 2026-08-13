@@ -31,3 +31,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secrets ###
+# bootstrap.sh generates deploy/.env with the real DB_PASSWORD and APP_JWT_SECRET.
+.env
+**/.env
+.env.local
+# frontend/.env.production holds only an empty VITE_API_URL (same-origin) and is safe to track.
+!frontend/.env.production
