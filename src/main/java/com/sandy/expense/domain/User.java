@@ -15,10 +15,14 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(name = "users")
+// Batch-fetch lazy User references instead of loading them one at a time. The audit trail on a
+// request detail holds an actor per row, so without this each row costs its own SELECT.
+@BatchSize(size = 50)
 @Getter
 @Setter
 @NoArgsConstructor
