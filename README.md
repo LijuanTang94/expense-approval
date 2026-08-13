@@ -7,6 +7,13 @@ distributed-systems machinery, just a focused, defensible product.
 
 **Stack:** Java 21 · Spring Boot 4.1 · PostgreSQL + Flyway · Spring Security + JWT (jjwt) · React 19 + Vite + TypeScript.
 
+**Live demo:** <https://lijuantang-expense.duckdns.org> — every seeded account uses the password
+`password123` (full list [below](#demo-accounts)). The quickest tour of the authorization model:
+file a request as `alice@acme.com` (Engineering employee), approve it as `bob@acme.com` (Engineering
+manager), then sign in as `dave@acme.com` (Sales manager) and confirm Alice's request isn't his to
+act on — department scoping is enforced server-side, not hidden in the UI. `fiona@acme.com` (finance)
+gives the final sign-off. Running on an Oracle always-free VM behind Caddy (automatic HTTPS).
+
 ---
 
 ## What it demonstrates
@@ -79,6 +86,8 @@ JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw spring-boot:run
 cd frontend && npm install && npm run dev
 ```
 
+### Demo accounts
+
 On first boot the app seeds three departments and five demo accounts (password `password123`):
 
 | Email | Role | Department |
@@ -95,8 +104,12 @@ On first boot the app seeds three departments and five demo accounts (password `
 JAVA_HOME=$(/usr/libexec/java_home -v 21) ./mvnw test
 ```
 
-14 tests, no database required: the state-machine transition table plus the RBAC guarantees
+15 tests, no database required: the state-machine transition table plus the RBAC guarantees
 (role-owns-stage, department scoping, no self-approval) with mocked repositories.
+
+These are unit tests with mocked repositories, so they deliberately do not cover wiring: a broken
+Flyway migration, a bad `@Query`, or a malformed `@PreAuthorize` expression would still let the suite
+pass. A `@SpringBootTest` context-load test against Testcontainers is the obvious next addition.
 
 ## Deployment
 
@@ -135,9 +148,15 @@ code changes, just a different target.
   filter builds the principal from those claims, so authorization needs no per-request DB lookup. The
   trade-off is that a role/department change only takes effect on the next login — acceptable here,
   and the seam to re-check the DB is a one-line change.
-- **Flyway owns the schema (`ddl-auto=none`).** Hand-written, reviewable SQL migrations are the source
-  of truth; entities map to them. (Hibernate `validate` fights Postgres `timestamptz`/`text`/`char`,
-  so it is off.)
+- **Flyway owns the schema (`ddl-auto=validate`).** Hand-written, reviewable SQL migrations are the
+  source of truth; entities map to them, and Hibernate is allowed to verify that mapping at startup
+  but never to mutate it. (`validate` initially failed against Postgres over `timestamptz`/`text`/`char`
+  mismatches; migration `V2` fixed the column types rather than turning the check off, so a drift
+  between an entity and the schema now fails the boot instead of surfacing at runtime.)
+- **Optimistic locking on approvals (`@Version` → `409`).** Two approvers acting on the same request
+  race between reading its state and writing the transition. A version column makes the second commit
+  fail, and `GlobalExceptionHandler` maps that to `409 Conflict` — the request was valid, it just lost
+  the race, which is a different failure from "bad input" or "not allowed".
 - **Denormalised `total_amount`** on the request keeps list/filter queries cheap; it is recomputed
   from the line items on every write.
 - **404 instead of 403 on cross-department reads** so the API doesn't leak the existence of other

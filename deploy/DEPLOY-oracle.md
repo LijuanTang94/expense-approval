@@ -1,7 +1,16 @@
 # Deploy to an Oracle Cloud Always-Free VM (free forever, always-on, HTTPS)
 
 Runs the whole app (Spring Boot + its own Postgres + Caddy for automatic HTTPS) on one
-Always-Free ARM VM. Result: a permanent `https://<your-ip>.sslip.io` demo at $0.
+Always-Free ARM VM, at $0.
+
+Two ways to get a hostname for the TLS certificate:
+
+- **sslip.io** — zero setup. `1-2-3-4.sslip.io` resolves to `1.2.3.4`, so the URL is derived
+  from the VM's IP. Fine for a throwaway demo, but the URL changes if the IP does.
+- **DuckDNS** (what the live demo uses) — a free subdomain plus a cron job that re-points it
+  whenever the IP changes, so the URL stays stable. See Phase 4b.
+
+The live instance runs at <https://lijuantang-expense.duckdns.org>.
 
 ## Phase 1 — Create the VM (Oracle Cloud console)
 
@@ -65,6 +74,21 @@ EOF
 cat .env   # note the SITE_ADDRESS — that's your demo URL
 ```
 
+### Phase 4b — A stable hostname with DuckDNS (what the live demo uses)
+
+sslip.io ties the URL to the IP, so the demo link breaks if the VM's address changes. DuckDNS
+gives a free subdomain you can re-point instead. Register a subdomain at duckdns.org, then set
+`SITE_ADDRESS=<your-subdomain>.duckdns.org` in `.env` and keep it pointed at the VM:
+
+```bash
+# refresh the DNS record every 5 minutes in case the IP changes
+( crontab -l 2>/dev/null; \
+  echo "*/5 * * * * curl -s 'https://www.duckdns.org/update?domains=<subdomain>&token=<token>&ip=' >/dev/null" \
+) | crontab -
+```
+
+Caddy requests the certificate for whatever `SITE_ADDRESS` says, so nothing else changes.
+
 Build + run the whole stack:
 
 ```bash
@@ -79,8 +103,9 @@ docker compose -f docker-compose.prod.yml logs -f app     # wait for "Started Ex
 
 ## Phase 5 — Verify
 
-Open `https://<your-ip-with-dashes>.sslip.io` — Caddy will have fetched a Let's Encrypt cert
-automatically. Log in with a demo account (alice@acme.com / password123).
+Open whatever `SITE_ADDRESS` you configured — `https://<your-ip-with-dashes>.sslip.io`, or your
+DuckDNS subdomain. Caddy will have fetched a Let's Encrypt cert automatically. Log in with a demo
+account (alice@acme.com / password123).
 
 ## Updating later
 
