@@ -1,7 +1,12 @@
 package com.sandy.expense.security;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -34,7 +39,10 @@ public class SecurityConfig {
                 .cors(cors -> {}) // use the CorsConfigurationSource bean below
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**")
+                        // Only login and register are public. /api/auth/me must be authenticated:
+                        // as part of the permitAll group it was reached with a null principal and
+                        // blew up with a 500 — and it's the call the SPA makes on every page load.
+                        .requestMatchers("/api/auth/login", "/api/auth/register")
                         .permitAll()
                         .requestMatchers("/actuator/health", "/error")
                         .permitAll()
@@ -53,10 +61,34 @@ public class SecurityConfig {
                         .permitAll()
                         .anyRequest()
                         .authenticated())
+                // Without these, Spring Security falls back to Http403ForbiddenEntryPoint (because
+                // httpBasic and formLogin are disabled): a missing or expired token produced a 403
+                // with an empty body. That's the wrong status — the client should be told to
+                // re-authenticate, not that it's forbidden — and the SPA keys its "session expired,
+                // go to login" handling off 401, so it never fired. These also keep the
+                // {code, message, timestamp} envelope intact for failures that happen in the filter
+                // chain, before @RestControllerAdvice can see them.
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                                (req, res, e) -> writeError(res, 401, "UNAUTHORIZED",
+                                        "Authentication required — sign in again"))
+                        .accessDeniedHandler(
+                                (req, res, e) -> writeError(res, 403, "FORBIDDEN",
+                                        "You do not have permission to perform this action")))
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    /** Same envelope shape as GlobalExceptionHandler, written directly from the filter chain. */
+    private static void writeError(HttpServletResponse res, int status, String code, String message)
+            throws IOException {
+        res.setStatus(status);
+        res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        res.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        res.getWriter()
+                .write("{\"code\":\"%s\",\"message\":\"%s\",\"timestamp\":\"%s\"}"
+                        .formatted(code, message, Instant.now()));
     }
 
     @Bean
