@@ -30,13 +30,15 @@ public class ExpenseItem {
     @JoinColumn(name = "request_id", nullable = false)
     private ExpenseRequest request;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 200)
     private String description;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 40)
     private String category;
 
-    @Column(nullable = false)
+    // Scale pinned to match the NUMERIC(12,2) column so the value returned by create/update is
+    // exactly what a later read returns.
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 
     @Column(name = "incurred_on", nullable = false)

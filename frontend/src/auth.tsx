@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, getToken, setToken } from "./api";
+import { api, getToken, setToken, setUnauthorizedHandler } from "./api";
 import type { AuthResponse, UserView } from "./types";
 
 interface AuthState {
@@ -14,6 +14,13 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserView | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Any 401 from anywhere in the app (typically an expired token) drops us back to a logged-out
+    // state, so ProtectedRoute redirects to /login instead of leaving a broken session on screen.
+    setUnauthorizedHandler(() => setUser(null));
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   useEffect(() => {
     // Restore the session on load if a token is present.

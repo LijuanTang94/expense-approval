@@ -149,7 +149,8 @@ class ExpenseServiceTest {
     @Test
     void employeeCannotViewSomeoneElsesRequest() {
         ExpenseRequest r = request(108L, alice, eng, RequestStatus.SUBMITTED);
-        when(requests.findById(108L)).thenReturn(Optional.of(r));
+        // get() reads through the entity-graph query so the detail view doesn't N+1.
+        when(requests.findWithDetailById(108L)).thenReturn(Optional.of(r));
 
         assertThatThrownBy(() -> service.get(principal(carol), 108L))
                 .isInstanceOf(ApiException.class)

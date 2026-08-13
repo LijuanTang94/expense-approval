@@ -25,7 +25,9 @@ services:
       DB_URL: jdbc:postgresql://db:5432/expense
       DB_USER: expense
       DB_PASSWORD: expense
-      APP_JWT_SECRET: local-compose-secret-change-me-32bytes-minimum
+      # No secret is committed here on purpose — the app generates a random dev key at startup.
+      # Export APP_JWT_SECRET before `docker compose up` if you want tokens to survive a restart.
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-}
       SERVER_PORT: "8081"
     ports:
       - "8081:8081"

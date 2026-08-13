@@ -30,7 +30,13 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
       APP_JWT_SECRET: ${APP_JWT_SECRET:?set APP_JWT_SECRET in .env}
       SERVER_PORT: "8081"
+      # Cap the heap so the JVM can't balloon past the container limit below.
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70"
     restart: unless-stopped
+    # The free-tier VM is small and shared with Postgres and Caddy; without limits one runaway
+    # container can starve the others.
+    mem_limit: 768m
+    cpus: 1.0
 
   caddy:
     image: caddy:2-alpine

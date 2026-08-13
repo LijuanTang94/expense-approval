@@ -48,7 +48,11 @@ public class ExpenseController {
             @RequestParam(required = false) RequestStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        var pageable = PageRequest.of(page, Math.min(size, 100), Sort.by(Sort.Direction.DESC, "createdAt"));
+        // Clamp both ends: PageRequest.of throws IllegalArgumentException for a negative page or a
+        // size below 1, which would surface as a 500 on a request as ordinary as "?page=-1".
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        var pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         return service.list(me, status, pageable);
     }
 

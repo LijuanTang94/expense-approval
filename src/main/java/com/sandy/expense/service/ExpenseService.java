@@ -16,6 +16,7 @@ import com.sandy.expense.web.dto.ExpenseDtos.RequestDetail;
 import com.sandy.expense.web.dto.ExpenseDtos.RequestSummary;
 import com.sandy.expense.web.dto.PageResponse;
 import com.sandy.expense.web.error.ApiException;
+import java.math.RoundingMode;
 import java.time.Instant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,7 +38,9 @@ public class ExpenseService {
 
     @Transactional
     public RequestDetail create(AppUserPrincipal me, CreateRequest input) {
-        User requester = users.findById(me.getUserId()).orElseThrow();
+        User requester =
+                users.findById(me.getUserId())
+                        .orElseThrow(() -> ApiException.notFound("User not found"));
         if (requester.getDepartment() == null) {
             throw ApiException.badRequest("NO_DEPARTMENT", "Your account has no department; ask an admin to assign one");
         }
@@ -60,7 +63,10 @@ public class ExpenseService {
         ExpenseItem item = new ExpenseItem();
         item.setDescription(it.description());
         item.setCategory(it.category());
-        item.setAmount(it.amount());
+        // Pin to the column's scale here rather than letting the driver round on write: otherwise
+        // the object returned in the create/update response carries the raw value and disagrees
+        // with what a subsequent read returns.
+        item.setAmount(it.amount().setScale(2, RoundingMode.HALF_UP));
         item.setIncurredOn(it.incurredOn());
         return item;
     }
@@ -80,7 +86,10 @@ public class ExpenseService {
 
     @Transactional(readOnly = true)
     public RequestDetail get(AppUserPrincipal me, Long id) {
-        ExpenseRequest r = load(id);
+        // Fetches requester + department in the same query (the DTO reads both).
+        ExpenseRequest r =
+                requests.findWithDetailById(id)
+                        .orElseThrow(() -> ApiException.notFound("Request not found"));
         assertCanView(me, r);
         // touch lazy collections inside the tx
         r.getItems().size();

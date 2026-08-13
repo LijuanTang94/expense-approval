@@ -22,5 +22,15 @@ RUN mvn -q -B clean package -DskipTests
 FROM eclipse-temurin:21-jre-alpine AS runtime
 WORKDIR /app
 COPY --from=backend /app/target/*.jar app.jar
+
+# Run as an unprivileged user: nothing here needs root, and a container process that starts as
+# root keeps root's capabilities if it's ever compromised.
+RUN addgroup -S app && adduser -S -G app app && chown -R app:app /app
+USER app
+
 EXPOSE 8081
+# Lets Docker/compose distinguish "container started" from "app actually serving".
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+    CMD wget -qO- http://localhost:8081/actuator/health || exit 1
+
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

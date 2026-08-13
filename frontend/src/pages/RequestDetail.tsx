@@ -14,6 +14,10 @@ export function RequestDetail() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
+    // Clear first: without this, navigating from one request to another shows the previous
+    // request's line items (and any stale error) until the new response lands.
+    setDetail(null);
+    setError(null);
     api<Detail>(`/api/requests/${id}`)
       .then(setDetail)
       .catch((e) => setError(e.message));
@@ -27,7 +31,10 @@ export function RequestDetail() {
     try {
       const body = action === "submit" ? undefined : { comment };
       const updated = await api<Detail>(`/api/requests/${id}/${action}`, { method: "POST", body });
-      setDetail(updated);
+      // Don't blindly trust the action to echo the request back — an empty (204) response would
+      // otherwise wipe the page into a permanent "Loading…".
+      if (updated) setDetail(updated);
+      else load();
       setComment("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed");

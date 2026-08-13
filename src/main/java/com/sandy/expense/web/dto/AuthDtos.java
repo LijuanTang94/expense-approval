@@ -12,11 +12,16 @@ public final class AuthDtos {
 
     private AuthDtos() {}
 
+    /**
+     * Public self-registration. Deliberately has NO {@code role} field: accepting a client-supplied
+     * role here would be mass assignment — anyone could register as FINANCE and approve every
+     * request in the company, defeating every downstream authorization check. New accounts are
+     * always created as EMPLOYEE; granting MANAGER/FINANCE is an administrative action.
+     */
     public record RegisterRequest(
             @Email @NotBlank String email,
             @NotBlank @Size(min = 8, message = "password must be at least 8 characters") String password,
-            @NotBlank String fullName,
-            @NotNull Role role,
+            @NotBlank @Size(max = 120) String fullName,
             Long departmentId) {}
 
     public record LoginRequest(@Email @NotBlank String email, @NotBlank String password) {}

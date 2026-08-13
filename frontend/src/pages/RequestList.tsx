@@ -21,6 +21,7 @@ export function RequestList() {
   const [status, setStatus] = useState<RequestStatus | "">("");
   const [data, setData] = useState<Page<RequestSummary> | null>(null);
   const [inbox, setInbox] = useState<RequestSummary[]>([]);
+  const [inboxError, setInboxError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<number | null>(null);
@@ -31,8 +32,13 @@ export function RequestList() {
       return;
     }
     api<Page<RequestSummary>>(`/api/requests?status=${approverStatus}`)
-      .then((p) => setInbox(p.content))
-      .catch(() => setInbox([]));
+      .then((p) => {
+        setInbox(p.content);
+        setInboxError(null);
+      })
+      // Don't swallow this: silently showing "nothing to approve" when the queue failed to load
+      // would tell an approver their work is done when it isn't.
+      .catch((e) => setInboxError(e instanceof ApiError ? e.message : "Could not load your approval queue"));
   }, [approverStatus]);
 
   const loadList = useCallback(() => {
@@ -99,7 +105,9 @@ export function RequestList() {
             </span>
           </div>
           {error && <div className="error">{error}</div>}
-          {inbox.length === 0 ? (
+          {inboxError ? (
+            <div className="error">{inboxError}</div>
+          ) : inbox.length === 0 ? (
             <p className="muted">Nothing awaiting your approval right now.</p>
           ) : (
             <table>

@@ -74,10 +74,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration c = new CorsConfiguration();
-        // Auth is via the Authorization: Bearer header, never cookies, so credentials stay off and
-        // allowing any origin is safe. This covers the Vite dev server, same-origin production
-        // (the SPA is served by this app), and any future host without a rebuild. Note that even
-        // same-origin ES-module script fetches send an Origin header, so this must not be a fixed list.
+        // Auth is a Bearer header, never a cookie, so credentials stay off and a wildcard origin
+        // can't be used to ride an ambient session — a caller still needs a token they obtained
+        // some other way. Kept permissive so the demo works from any host it's deployed to.
+        //
+        // Why this matters even though the SPA is same-origin: Vite emits its bundles as
+        // <script type="module" crossorigin>, and the crossorigin attribute makes the browser send
+        // an Origin header and apply CORS rules to those requests. A fixed localhost allow-list
+        // therefore had the API reject the app's own JS/CSS in production, blanking the page.
         c.setAllowedOriginPatterns(List.of("*"));
         c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         c.setAllowedHeaders(List.of("Authorization", "Content-Type"));

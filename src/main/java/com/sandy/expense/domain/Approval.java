@@ -15,6 +15,7 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 
 /** Append-only audit record of a single state transition on an expense request. */
@@ -33,7 +34,11 @@ public class Approval {
     @JoinColumn(name = "request_id", nullable = false)
     private ExpenseRequest request;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    // LAZY + batch fetching: the audit trail renders the actor's name for every row, which as an
+    // EAGER association meant one SELECT per approval. @BatchSize collapses those into a single
+    // batched load of all the actors on the trail.
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @BatchSize(size = 50)
     @JoinColumn(name = "actor_id", nullable = false)
     private User actor;
 

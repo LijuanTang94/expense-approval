@@ -4,6 +4,7 @@ import com.sandy.expense.domain.Approval;
 import com.sandy.expense.domain.ExpenseItem;
 import com.sandy.expense.domain.ExpenseRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -22,17 +23,25 @@ public final class ExpenseDtos {
 
     // ---- inputs ----
 
+    // Sizes mirror the column definitions in the Flyway schema. Without them an over-long value
+    // passes validation and then fails at INSERT, turning a user error (400) into a 500.
     public record ItemInput(
-            @NotBlank String description,
-            @NotBlank String category,
-            @NotNull @Positive BigDecimal amount,
+            @NotBlank @Size(max = 200) String description,
+            @NotBlank @Size(max = 40) String category,
+            @NotNull
+                    @Positive
+                    @Digits(integer = 10, fraction = 2, message = "amount supports at most 2 decimal places")
+                    BigDecimal amount,
             @NotNull @PastOrPresent(message = "expense date cannot be in the future") LocalDate incurredOn) {}
 
     public record CreateRequest(
             @NotBlank @Size(max = 200) String title,
-            String description,
+            @Size(max = 2000) String description,
             @Size(min = 3, max = 3) String currency,
-            @NotEmpty(message = "at least one line item is required") @Valid List<ItemInput> items) {}
+            @NotEmpty(message = "at least one line item is required")
+                    @Size(max = 100, message = "a request cannot have more than 100 line items")
+                    @Valid
+                    List<ItemInput> items) {}
 
     public record DecisionInput(@Size(max = 500) String comment) {}
 

@@ -1,6 +1,7 @@
 package com.sandy.expense.service;
 
 import com.sandy.expense.domain.Department;
+import com.sandy.expense.domain.Role;
 import com.sandy.expense.domain.User;
 import com.sandy.expense.repo.DepartmentRepository;
 import com.sandy.expense.repo.UserRepository;
@@ -55,7 +56,9 @@ public class AuthService {
         u.setEmail(req.email());
         u.setPasswordHash(encoder.encode(req.password()));
         u.setFullName(req.fullName());
-        u.setRole(req.role());
+        // Role is NOT taken from the request: self-registration always yields an EMPLOYEE.
+        // Promotion to MANAGER/FINANCE is an administrative action, never self-service.
+        u.setRole(Role.EMPLOYEE);
         u.setDepartment(dept);
         users.save(u);
         return new AuthResponse(jwt.issue(u), "Bearer", jwt.ttlSeconds(), UserView.of(u));
@@ -70,7 +73,9 @@ public class AuthService {
             throw new ApiException(
                     org.springframework.http.HttpStatus.UNAUTHORIZED, "BAD_CREDENTIALS", "Invalid email or password");
         }
-        User u = users.findByEmail(req.email()).orElseThrow();
+        User u =
+                users.findByEmail(req.email())
+                        .orElseThrow(() -> ApiException.notFound("User not found"));
         return new AuthResponse(jwt.issue(u), "Bearer", jwt.ttlSeconds(), UserView.of(u));
     }
 
