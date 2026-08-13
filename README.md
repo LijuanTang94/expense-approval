@@ -42,20 +42,83 @@ Three guarantees are unit-tested:
 
 ## State machine
 
-```
-DRAFT ──submit──▶ SUBMITTED ──approve──▶ MANAGER_APPROVED ──approve──▶ FINANCE_APPROVED
-                      │                        │
-                      └────────reject──────────┴──▶ REJECTED
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT: create
+    DRAFT --> SUBMITTED: submit<br/>(owner only, needs ≥1 item)
+    SUBMITTED --> MANAGER_APPROVED: approve<br/>(MANAGER, same dept, not self)
+    SUBMITTED --> REJECTED: reject
+    MANAGER_APPROVED --> FINANCE_APPROVED: approve<br/>(FINANCE)
+    MANAGER_APPROVED --> REJECTED: reject
+    FINANCE_APPROVED --> [*]
+    REJECTED --> [*]
 ```
 
-Every transition writes an immutable row to `approvals` (who, action, from → to, comment, when).
+Who may act is a property of the state, not of the endpoint: `SUBMITTED` is owned by `MANAGER`,
+`MANAGER_APPROVED` by `FINANCE`, and every other state is awaiting nobody. That mapping lives in
+`RequestStatus` alone, so adding a stage means editing one enum rather than hunting for `if`
+statements — and a request in a terminal state is rejected by the same rule that rejects a request
+in `DRAFT`, without a separate "is it finished" check.
+
+Every transition writes an immutable row to `approvals` (who, action, from → to, comment, when), and
+concurrent decisions on the same request are settled by a `@Version` column: the second writer's
+`UPDATE` matches nothing and surfaces as `409`.
 
 ## Data model
 
-`departments` · `users` (one role each, FK department) · `expense_requests` (FK requester + department,
-status, denormalised total) · `expense_items` (FK request, cascade-deleted) · `approvals` (append-only
-audit trail). See [`V1__init_schema.sql`](src/main/resources/db/migration/V1__init_schema.sql) — Flyway
-is the single source of truth for the schema; Hibernate never mutates it.
+```mermaid
+erDiagram
+    departments ||--o{ users : "employs"
+    departments ||--o{ expense_requests : "owns"
+    users       ||--o{ expense_requests : "requests"
+    users       ||--o{ approvals : "acts on"
+    expense_requests ||--o{ expense_items : "cascade delete"
+    expense_requests ||--o{ approvals : "append-only trail"
+
+    departments {
+        bigint id PK
+        varchar name UK
+    }
+    users {
+        bigint id PK
+        varchar email UK
+        varchar role "EMPLOYEE | MANAGER | FINANCE"
+        bigint department_id FK
+    }
+    expense_requests {
+        bigint id PK
+        bigint requester_id FK
+        bigint department_id FK
+        varchar status "state machine"
+        numeric total_amount "denormalised"
+        char currency "ISO-4217"
+        bigint version "optimistic lock"
+    }
+    expense_items {
+        bigint id PK
+        bigint request_id FK
+        numeric amount
+        date incurred_on
+    }
+    approvals {
+        bigint id PK
+        bigint request_id FK
+        bigint actor_id FK
+        varchar action "SUBMIT | APPROVE | REJECT"
+        varchar from_status
+        varchar to_status
+    }
+```
+
+Three things in that shape are deliberate. `expense_requests` carries its own `department_id` rather
+than reading it through the requester, so a manager's department scope stays correct even if someone
+later changes departments. `total_amount` is denormalised (recomputed on every write) so list and
+filter queries never aggregate line items. And `approvals` is only ever inserted into — it is the
+audit trail, so a corrected decision is a new row, never an edit.
+
+See [`V1__init_schema.sql`](src/main/resources/db/migration/V1__init_schema.sql) — Flyway
+is the single source of truth for the schema; Hibernate never mutates it, and with
+`ddl-auto: validate` a drifted entity fails the boot.
 
 ## API
 
