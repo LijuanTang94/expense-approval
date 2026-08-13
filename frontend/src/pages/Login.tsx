@@ -3,10 +3,15 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { ApiError } from "../api";
 
+// Two departments on purpose: signing in as the Sales manager shows that a manager sees (and can
+// decide on) only their own department's requests — with Engineering accounts alone, the
+// role-scoping looks like it does nothing.
 const DEMO = [
   ["alice@acme.com", "Employee · Engineering"],
-  ["bob@acme.com", "Manager · Engineering"],
-  ["fiona@acme.com", "Finance"],
+  ["bob@acme.com", "Manager · Engineering — approves Engineering"],
+  ["carol@acme.com", "Employee · Sales"],
+  ["dave@acme.com", "Manager · Sales — approves Sales only"],
+  ["fiona@acme.com", "Finance — final approval, sees everything"],
 ];
 
 export function Login() {
